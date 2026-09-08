@@ -56,6 +56,21 @@ Open <http://localhost:3000>, create an account, and add a habit.
 > `http://localhost:3000/auth/callback` to the allowed redirect URLs under
 > **Authentication → URL Configuration**.
 
+## Supabase MCP server (optional)
+
+`.mcp.json` registers Supabase's hosted MCP server, which lets an AI coding tool
+inspect the project's schema, logs and docs directly. It holds no secrets — just
+the project ref and the enabled feature set — and each person authenticates as
+themselves:
+
+```bash
+claude          # approve the server when prompted
+claude /mcp     # select "supabase", then Authenticate
+```
+
+Run that in a real terminal rather than an IDE extension, since it opens a
+browser for OAuth. Optional Supabase agent skills: `npx skills add supabase/agent-skills`.
+
 ## Scripts
 
 | Command | What it does |
