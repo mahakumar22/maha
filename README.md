@@ -64,6 +64,7 @@ Open <http://localhost:3000>, create an account, and add a habit.
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 | `npm test` | Streak and date-handling tests |
+| `./supabase/tests/run.sh` | Row level security tests (needs a local Postgres) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 
@@ -125,7 +126,26 @@ cascades to everything.
 
 RLS is enabled on both tables with select/insert/update/delete policies keyed on
 `auth.uid() = user_id`. Inserting a completion additionally requires that the
-target habit belongs to the caller.
+target habit belongs to the caller. The script also grants table access to
+`authenticated` explicitly — a stock Supabase project already does this through
+its default privileges, but without it a signed-in user hits `permission denied
+for table habits` before RLS ever gets a say.
+
+### Verifying the policies
+
+`supabase/tests/` applies `schema.sql` to a throwaway database and checks the
+policies hold, by having one user try to read, rename, delete and write to
+another's habits. It runs against any local Postgres:
+
+```bash
+./supabase/tests/run.sh
+# or point it somewhere:
+PGHOST=/tmp PGPORT=5432 PGUSER=postgres ./supabase/tests/run.sh
+```
+
+`setup.sql` stubs the pieces of Supabase the schema leans on (the `auth` schema,
+`auth.uid()`, and the `anon`/`authenticated`/`service_role` roles) so no Supabase
+project is needed. It also confirms `schema.sql` is safe to apply twice.
 
 ## Deploying
 

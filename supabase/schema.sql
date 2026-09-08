@@ -84,6 +84,14 @@ create trigger habit_completions_set_user_id
 alter table public.habits enable row level security;
 alter table public.habit_completions enable row level security;
 
+-- A stock Supabase project already grants these through its default privileges
+-- on the public schema, but spelling them out keeps this script self-contained:
+-- without them a signed-in user hits "permission denied for table habits"
+-- before RLS ever gets a say. anon is deliberately left out -- there are no
+-- policies for it, so it can reach nothing here.
+grant select, insert, update, delete on public.habits            to authenticated;
+grant select, insert, update, delete on public.habit_completions to authenticated;
+
 drop policy if exists "habits are readable by their owner"    on public.habits;
 drop policy if exists "habits are insertable by their owner"  on public.habits;
 drop policy if exists "habits are updatable by their owner"   on public.habits;
