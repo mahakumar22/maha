@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/auth/actions";
 import { HabitBoard } from "@/components/HabitBoard";
+import { emailConfigured } from "@/lib/email";
 import { getHabitsWithHistory } from "@/lib/habits";
+import { getReminder } from "@/lib/reminders";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -19,7 +21,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const habits = await getHabitsWithHistory();
+  const [habits, reminder] = await Promise.all([getHabitsWithHistory(), getReminder()]);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
@@ -38,7 +40,13 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <HabitBoard habits={habits} serverToday={new Date().toISOString().slice(0, 10)} />
+      <HabitBoard
+        habits={habits}
+        serverToday={new Date().toISOString().slice(0, 10)}
+        reminder={reminder}
+        accountEmail={user.email ?? ""}
+        emailConfigured={emailConfigured()}
+      />
     </main>
   );
 }

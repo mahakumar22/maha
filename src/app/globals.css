@@ -12,6 +12,10 @@
   --border: #e4e4e8;
   --muted: #6c6c78;
   --accent: #4f46e5;
+  /* Chart bar: sequential blue, checked against this surface for contrast,
+     lightness band and chroma before it was picked. */
+  --chart-bar: #2a78d6;
+  --chart-axis: #e4e4e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +26,8 @@
     --border: #2a2a31;
     --muted: #9b9ba6;
     --accent: #7c74f0;
+    --chart-bar: #3987e5;
+    --chart-axis: #2a2a31;
   }
 }
 
@@ -32,6 +38,8 @@
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-chart-bar: var(--chart-bar);
+  --color-chart-axis: var(--chart-axis);
 }
 
 body {

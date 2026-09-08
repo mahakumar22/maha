@@ -6,7 +6,8 @@ set client_min_messages = notice;
 
 insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'alice@example.com'),
-  ('22222222-2222-2222-2222-222222222222', 'bob@example.com');
+  ('22222222-2222-2222-2222-222222222222', 'bob@example.com'),
+  ('33333333-3333-3333-3333-333333333333', 'carol@example.com');
 
 create or replace function act_as(who uuid) returns void language plpgsql as $$
 begin perform set_config('request.jwt.claim.sub', who::text, false); end; $$;
@@ -116,6 +117,57 @@ delete from auth.users where id = '22222222-2222-2222-2222-222222222222';
 select must_equal((select count(*)::int from public.habits
     where user_id = '22222222-2222-2222-2222-222222222222'), 0,
   'deleting a user cascades to their habits');
+
+\echo '--- reminders ---'
+-- The cascade check above dropped back to the table owner, which bypasses RLS.
+-- Become a signed-in user again or none of these assertions mean anything.
+set role authenticated;
+select act_as('11111111-1111-1111-1111-111111111111');
+insert into public.habit_reminders (user_id, email)
+  values ('11111111-1111-1111-1111-111111111111', 'alice@example.com');
+
+select must_fail(
+  $$insert into public.habit_reminders (user_id, email)
+      values ('11111111-1111-1111-1111-111111111111', 'second@example.com')$$,
+  'a user cannot have two reminders');
+select must_fail(
+  $$insert into public.habit_reminders (user_id, email)
+      values ('11111111-1111-1111-1111-111111111111', 'not-an-email')$$,
+  'a malformed reminder address is rejected');
+
+select act_as('33333333-3333-3333-3333-333333333333');
+select must_equal((select count(*)::int from public.habit_reminders), 0,
+  'another user cannot read Alice''s reminder address');
+
+with u as (update public.habit_reminders set email = 'attacker@example.com'
+             where email = 'alice@example.com' returning 1)
+  select count(*)::int as n from u \gset
+select must_equal(:n, 0, 'another user cannot redirect Alice''s reminder');
+
+with d as (delete from public.habit_reminders returning 1)
+  select count(*)::int as n from d \gset
+select must_equal(:n, 0, 'another user cannot delete Alice''s reminder');
+
+select act_as('11111111-1111-1111-1111-111111111111');
+select must_equal((select email from public.habit_reminders), 'alice@example.com',
+  'Alice''s reminder is untouched');
+
+update public.habit_reminders set enabled = false
+  where user_id = '11111111-1111-1111-1111-111111111111';
+select must_equal((select enabled from public.habit_reminders), false,
+  'Alice can pause her own reminder');
+
+delete from public.habit_reminders where user_id = '11111111-1111-1111-1111-111111111111';
+select must_equal((select count(*)::int from public.habit_reminders), 0,
+  'Alice can delete her own reminder');
+
+reset role;
+insert into public.habit_reminders (user_id, email)
+  values ('33333333-3333-3333-3333-333333333333', 'carol@example.com');
+delete from auth.users where id = '33333333-3333-3333-3333-333333333333';
+select must_equal((select count(*)::int from public.habit_reminders
+                     where email = 'carol@example.com'), 0,
+  'deleting a user cascades to their reminder');
 
 \echo ''
 \echo 'ALL DATABASE TESTS PASSED'

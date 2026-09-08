@@ -13,6 +13,8 @@
     "src/lib/dates.ts",
     "src/lib/streak.ts",
     "src/lib/constants.ts",
+    "src/lib/validation.ts",
+    "src/lib/reminder-email.ts",
     "tests/**/*.ts"
   ]
 }

@@ -50,6 +50,33 @@ create index if not exists habit_completions_habit_id_completed_on_idx
   on public.habit_completions (habit_id, completed_on desc);
 
 -- ---------------------------------------------------------------------------
+-- habit_reminders
+-- At most one daily nudge per user, hence the unique user_id. last_sent_on
+-- makes the send idempotent: a cron that fires twice in a day still only mails
+-- once.
+-- ---------------------------------------------------------------------------
+create table if not exists public.habit_reminders (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null unique references auth.users (id) on delete cascade,
+  email        text not null,
+  enabled      boolean not null default true,
+  last_sent_on date,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+
+  constraint habit_reminders_email_shape
+    check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
+           and char_length(email) <= 254)
+);
+
+comment on table public.habit_reminders is 'Daily email nudge settings, one row per user.';
+comment on column public.habit_reminders.last_sent_on is 'Guards against sending twice on the same day.';
+
+-- The nightly job asks for exactly this: enabled reminders not yet sent today.
+create index if not exists habit_reminders_due_idx
+  on public.habit_reminders (last_sent_on) where enabled;
+
+-- ---------------------------------------------------------------------------
 -- Keep habit_completions.user_id honest: it must always match the owner of the
 -- habit, whatever the client sends.
 -- ---------------------------------------------------------------------------
@@ -83,6 +110,7 @@ create trigger habit_completions_set_user_id
 -- ---------------------------------------------------------------------------
 alter table public.habits enable row level security;
 alter table public.habit_completions enable row level security;
+alter table public.habit_reminders enable row level security;
 
 -- A stock Supabase project already grants these through its default privileges
 -- on the public schema, but spelling them out keeps this script self-contained:
@@ -91,6 +119,7 @@ alter table public.habit_completions enable row level security;
 -- policies for it, so it can reach nothing here.
 grant select, insert, update, delete on public.habits            to authenticated;
 grant select, insert, update, delete on public.habit_completions to authenticated;
+grant select, insert, update, delete on public.habit_reminders   to authenticated;
 
 drop policy if exists "habits are readable by their owner"    on public.habits;
 drop policy if exists "habits are insertable by their owner"  on public.habits;
@@ -143,3 +172,32 @@ create policy "completions are deletable by their owner"
   on public.habit_completions for delete
   to authenticated
   using (auth.uid() = user_id);
+
+drop policy if exists "reminders are readable by their owner"   on public.habit_reminders;
+drop policy if exists "reminders are insertable by their owner" on public.habit_reminders;
+drop policy if exists "reminders are updatable by their owner"  on public.habit_reminders;
+drop policy if exists "reminders are deletable by their owner"  on public.habit_reminders;
+
+create policy "reminders are readable by their owner"
+  on public.habit_reminders for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create policy "reminders are insertable by their owner"
+  on public.habit_reminders for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "reminders are updatable by their owner"
+  on public.habit_reminders for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "reminders are deletable by their owner"
+  on public.habit_reminders for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- The nightly mailer reads every due row and so runs with the service role,
+-- which bypasses RLS. No policy grants anon or authenticated that reach.
