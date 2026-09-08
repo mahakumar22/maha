@@ -9,5 +9,10 @@
     "incremental": false,
     "plugins": []
   },
-  "include": ["src/lib/dates.ts", "src/lib/streak.ts", "tests/**/*.ts"]
+  "include": [
+    "src/lib/dates.ts",
+    "src/lib/streak.ts",
+    "src/lib/constants.ts",
+    "tests/**/*.ts"
+  ]
 }

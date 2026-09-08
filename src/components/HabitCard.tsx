@@ -3,11 +3,10 @@
 import { useOptimistic, useState, useTransition } from "react";
 
 import { deleteHabit, toggleCompletion } from "@/app/actions";
+import { VISIBLE_DAYS } from "@/lib/constants";
 import { formatDayOfMonth, formatWeekday, recentDays } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streak";
 import type { HabitWithHistory } from "@/lib/habits";
-
-const VISIBLE_DAYS = 7;
 
 type Change = { date: string; done: boolean };
 

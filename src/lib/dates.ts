@@ -69,3 +69,18 @@ export function formatLongDate(iso: string): string {
     timeZone: "UTC",
   });
 }
+
+/**
+ * Whether the client may write to `date`. The browser reports its own local
+ * day, which can sit a day either side of the server's UTC day, and the board
+ * lets people fill in the previous `windowDays` days as well as today.
+ */
+export function isEditableDate(
+  date: unknown,
+  utcToday: string,
+  windowDays: number,
+): date is string {
+  if (!isISODate(date)) return false;
+  const delta = daysBetween(utcToday, date);
+  return delta <= 1 && delta >= -windowDays;
+}

@@ -2,21 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 
-import { daysBetween, isISODate } from "@/lib/dates";
+import { VISIBLE_DAYS } from "@/lib/constants";
+import { isEditableDate } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 
 export type ActionResult = { error?: string };
 
 /**
  * The client tells us which calendar day it is, because only the browser knows
- * the user's timezone. Timezones run from UTC-12 to UTC+14, so a legitimate
- * client date is never more than one day away from the server's UTC date.
+ * the user's timezone. Two things widen the window we accept: timezones run
+ * from UTC-12 to UTC+14, so the client's "today" can be a day either side of
+ * ours, and the board deliberately lets people tick off a day they forgot.
+ * VISIBLE_DAYS is shared with the board so the two cannot drift apart.
  */
-function assertPlausibleDate(date: unknown): asserts date is string {
-  if (!isISODate(date)) throw new Error("Invalid date.");
-
+function dateOutOfRange(date: string): string | null {
   const utcToday = new Date().toISOString().slice(0, 10);
-  if (Math.abs(daysBetween(utcToday, date)) > 1) throw new Error("Invalid date.");
+  if (!isEditableDate(date, utcToday, VISIBLE_DAYS)) {
+    return `You can only change the last ${VISIBLE_DAYS} days.`;
+  }
+  return null;
 }
 
 export async function addHabit(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -44,7 +48,8 @@ export async function toggleCompletion(
   date: string,
   done: boolean,
 ): Promise<ActionResult> {
-  assertPlausibleDate(date);
+  const rangeError = dateOutOfRange(date);
+  if (rangeError) return { error: rangeError };
 
   const supabase = await createClient();
 

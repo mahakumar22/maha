@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { addDays, daysBetween, isISODate, recentDays, toISODate } from "../src/lib/dates";
+import {
+  addDays,
+  daysBetween,
+  isEditableDate,
+  isISODate,
+  recentDays,
+  toISODate,
+} from "../src/lib/dates";
 import { computeStreaks } from "../src/lib/streak";
+import { VISIBLE_DAYS } from "../src/lib/constants";
 
 describe("computeStreaks", () => {
   it("reports nothing for a habit with no history", () => {
@@ -106,5 +114,46 @@ describe("date helpers", () => {
   it("reads the local calendar date, not the UTC one", () => {
     assert.equal(toISODate(new Date(2026, 8, 8, 23, 30)), "2026-09-08");
     assert.equal(toISODate(new Date(2026, 0, 1, 0, 1)), "2026-01-01");
+  });
+});
+
+describe("isEditableDate", () => {
+  const utcToday = "2026-09-08";
+
+  // The bug this guards against: the board rendered seven days, but the server
+  // only accepted two, so the five older dots threw "Invalid date." Every day
+  // the board draws must be writable, in any timezone.
+  it("accepts every day the board actually shows", () => {
+    for (const clientToday of [addDays(utcToday, -1), utcToday, addDays(utcToday, 1)]) {
+      for (const day of recentDays(clientToday, VISIBLE_DAYS)) {
+        assert.equal(
+          isEditableDate(day, utcToday, VISIBLE_DAYS),
+          true,
+          `${day} is on the board (client today ${clientToday}) but was rejected`,
+        );
+      }
+    }
+  });
+
+  it("allows a client one day ahead of the server", () => {
+    assert.equal(isEditableDate(addDays(utcToday, 1), utcToday, VISIBLE_DAYS), true);
+  });
+
+  it("rejects days further ahead than any timezone allows", () => {
+    assert.equal(isEditableDate(addDays(utcToday, 2), utcToday, VISIBLE_DAYS), false);
+  });
+
+  it("rejects backfilling older than the visible window", () => {
+    assert.equal(isEditableDate(addDays(utcToday, -VISIBLE_DAYS), utcToday, VISIBLE_DAYS), true);
+    assert.equal(
+      isEditableDate(addDays(utcToday, -(VISIBLE_DAYS + 1)), utcToday, VISIBLE_DAYS),
+      false,
+    );
+  });
+
+  it("rejects anything that is not a real date", () => {
+    assert.equal(isEditableDate("nope", utcToday, VISIBLE_DAYS), false);
+    assert.equal(isEditableDate("2026-02-30", utcToday, VISIBLE_DAYS), false);
+    assert.equal(isEditableDate(null, utcToday, VISIBLE_DAYS), false);
   });
 });
