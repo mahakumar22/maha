@@ -10,7 +10,7 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   // Generated output: compiled tests and Next's ambient type declarations.
-  { ignores: [".next/**", ".test-build/**", "node_modules/**", "next-env.d.ts"] },
+  { ignores: [".next/**", ".test-build/**", "node_modules/**", "next-env.d.ts", "photo-editor/**"] },
 ];
 
 export default eslintConfig;
